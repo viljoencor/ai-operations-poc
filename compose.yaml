@@ -1,0 +1,77 @@
+name: ai-operations-demo
+x-backend: &backend
+  build: ./backend
+  restart: unless-stopped
+  networks: [internal]
+  environment: &backend-env
+    SERVICE_TOKEN: ${SERVICE_TOKEN:-local-demo-service-token}
+services:
+  orchestrator:
+    <<: *backend
+    ports:
+      - "127.0.0.1:8100:8000"
+    environment:
+      <<: *backend-env
+      BOOKING_URL: http://booking-system:8000
+      PAYMENT_URL: http://payment-system:8000
+      INVENTORY_URL: http://inventory-system:8000
+      ORCHESTRATOR_DB: /data/orchestrator.db
+      PLANNER_MODE: ${PLANNER_MODE:-mock}
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
+      APPROVAL_TOKEN: ${APPROVAL_TOKEN:-local-demo-approval-token}
+    volumes: [orchestrator_data:/data]
+    depends_on:
+      booking-system: {condition: service_healthy}
+      payment-system: {condition: service_healthy}
+      inventory-system: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+  booking-system:
+    <<: *backend
+    command: ["uvicorn", "mock_systems.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      <<: *backend-env
+      SYSTEM_KIND: booking
+      BOOKING_DB: /data/booking.db
+    volumes: [booking_data:/data]
+    healthcheck: &mock-health
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+  payment-system:
+    <<: *backend
+    command: ["uvicorn", "mock_systems.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      <<: *backend-env
+      SYSTEM_KIND: payment
+    healthcheck: *mock-health
+  inventory-system:
+    <<: *backend
+    command: ["uvicorn", "mock_systems.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      <<: *backend-env
+      SYSTEM_KIND: inventory
+    healthcheck: *mock-health
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports: ["127.0.0.1:5174:80"]
+    depends_on: [orchestrator]
+    networks: [internal]
+  ollama:
+    image: ollama/ollama:latest
+    profiles: [ai]
+    volumes: [ollama_data:/root/.ollama]
+    networks: [internal]
+    # CPU by default. Set up host/GPU acceleration separately if available.
+networks:
+  internal: {}
+volumes:
+  orchestrator_data: {}
+  booking_data: {}
+  ollama_data: {}
