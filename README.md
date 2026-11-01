@@ -4,7 +4,7 @@
 
 The project demonstrates an **AI-assisted control plane for on-premises business applications that coordinate other systems**. A user describes a reconciliation problem; the orchestrator reads booking, payment and inventory services, evaluates an explicit policy, and requires a separate operator to approve one safely constrained write.
 
-## What is actually implemented
+## What is implemented
 
 - **Three separate HTTP microservices**: Booking, Payment and Inventory, each running independently in Docker Compose.
 - **FastAPI orchestration service**: one allowlisted reconciliation runbook, concurrent authenticated HTTP calls to the three systems, failure handling and short timeouts.
@@ -21,8 +21,13 @@ The project demonstrates an **AI-assisted control plane for on-premises business
 Requirements: Docker Desktop with Docker Compose. No AWS account, GPU or cloud service needed for deterministic mode.
 
 ```powershell
-Copy-Item .env.example .env
-# Edit .env if you want different local-only demo secrets.
+# Add to .env file
+# Only demo credentials. NEVER use in real systems.
+PLANNER_MODE=mock
+OLLAMA_MODEL=qwen2.5:3b
+SERVICE_TOKEN=local-demo-service-token
+APPROVAL_TOKEN=local-demo-approval-token
+
 docker compose up -d --build
 ```
 
@@ -84,7 +89,7 @@ flowchart TB
   O -->|recheck preconditions; idempotent approved POST| B
 ```
 
-More detail: [Architecture](docs/ARCHITECTURE.md) and [Technical-lead demo script](docs/DEMO_SCRIPT.md).
+More detail: [Architecture](docs/ARCHITECTURE.md).
 
 ## Source layout
 
@@ -106,8 +111,6 @@ cd backend
 python -m pip install -r requirements.txt pytest
 python -m pytest tests -q
 ```
-
-Use the [demo script](docs/DEMO_SCRIPT.md) to verify real HTTP calls across all three containerised services. Docker Compose integration has to be verified on a machine where Docker is available.
 
 ## Reset test data
 
